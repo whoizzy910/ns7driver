@@ -1,0 +1,5 @@
+ns7d
+tests/test_proto
+tests/test_timeline
+build/
+*.wav

@@ -1,0 +1,14 @@
+#!/bin/bash
+# Start the driver service and the MIDI helper, and load the plug-in.
+chown -R root:wheel /Library/Audio/Plug-Ins/HAL/NS7Audio.driver
+chown root:wheel /Library/LaunchDaemons/com.ns7driver.daemon.plist /Library/LaunchAgents/com.ns7driver.midi.plist
+xattr -dr com.apple.quarantine /usr/local/bin/ns7d /Library/Audio/Plug-Ins/HAL/NS7Audio.driver 2>/dev/null || true
+launchctl bootstrap system /Library/LaunchDaemons/com.ns7driver.daemon.plist 2>/dev/null || \
+    launchctl kickstart -k system/com.ns7driver.daemon 2>/dev/null || true
+user=$(stat -f%Su /dev/console)
+uid=$(id -u "$user" 2>/dev/null || echo 0)
+if [[ "$uid" != 0 ]]; then
+    launchctl bootstrap "gui/$uid" /Library/LaunchAgents/com.ns7driver.midi.plist 2>/dev/null || true
+fi
+killall coreaudiod 2>/dev/null || true
+exit 0

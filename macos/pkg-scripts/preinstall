@@ -1,0 +1,7 @@
+#!/bin/bash
+# Stop a previous version before files are replaced.
+user=$(stat -f%Su /dev/console)
+uid=$(id -u "$user" 2>/dev/null || echo 0)
+launchctl bootout system/com.ns7driver.daemon 2>/dev/null || true
+[[ "$uid" != 0 ]] && launchctl bootout "gui/$uid/com.ns7driver.midi" 2>/dev/null || true
+exit 0
