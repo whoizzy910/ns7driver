@@ -2,6 +2,8 @@ name: build
 on:
   push:
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   macos:
     runs-on: macos-14            # Apple Silicon
@@ -10,9 +12,27 @@ jobs:
       - name: Tools
         run: brew install pkg-config cmake || true
       - name: Build, test and package
-        run: macos/make-pkg.sh
+        run: |
+          set -o pipefail
+          macos/make-pkg.sh 2>&1 | tee build.log
+      - name: Report warnings and test results
+        if: always()
+        run: |
+          grep -E "warning:|error:" build.log | sort -u | head -40 | while IFS= read -r l; do echo "::warning::$l"; done
+          grep -E "checks, [0-9]+ failed|timeline: |FAIL" build.log | while IFS= read -r l; do echo "::notice::$l"; done
+          echo "::notice::$(ls build/*.pkg 2>/dev/null || echo 'no package built')"
       - uses: actions/upload-artifact@v4
         with:
           name: NS7Driver-pkg
           path: build/NS7Driver-*.pkg
           if-no-files-found: error
+      - name: Publish release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="build-${{ github.run_number }}"
+          gh release create "$tag" build/NS7Driver-*.pkg \
+            --title "NS7 Driver (build ${{ github.run_number }})" \
+            --notes "Double-click the .pkg to install. If macOS blocks it, right-click it and choose Open. Not yet tested on real NS7 hardware." \
+            --latest
